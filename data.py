@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from future.standard_library import install_aliases
+
 install_aliases()
 
 import numpy as np
@@ -13,12 +14,14 @@ import matplotlib.pyplot as plt
 import matplotlib.image
 from urllib.request import urlretrieve
 
+
 def download(url, filename):
     if not os.path.exists('data'):
         os.makedirs('data')
     out_file = os.path.join('data', filename)
     if not os.path.isfile(out_file):
         urlretrieve(url, out_file)
+
 
 def mnist():
     base_url = 'http://yann.lecun.com/exdb/mnist/'
@@ -41,18 +44,18 @@ def mnist():
 
     train_images = parse_images('data/train-images-idx3-ubyte.gz')
     train_labels = parse_labels('data/train-labels-idx1-ubyte.gz')
-    test_images  = parse_images('data/t10k-images-idx3-ubyte.gz')
-    test_labels  = parse_labels('data/t10k-labels-idx1-ubyte.gz')
+    test_images = parse_images('data/t10k-images-idx3-ubyte.gz')
+    test_labels = parse_labels('data/t10k-labels-idx1-ubyte.gz')
 
     return train_images, train_labels, test_images, test_labels
 
 
 def load_mnist():
-    partial_flatten = lambda x : np.reshape(x, (x.shape[0], np.prod(x.shape[1:])))
-    one_hot = lambda x, k: np.array(x[:,None] == np.arange(k)[None, :], dtype=int)
+    partial_flatten = lambda x: np.reshape(x, (x.shape[0], np.prod(x.shape[1:])))
+    one_hot = lambda x, k: np.array(x[:, None] == np.arange(k)[None, :], dtype=int)
     train_images, train_labels, test_images, test_labels = mnist()
     train_images = partial_flatten(train_images) / 255.0
-    test_images  = partial_flatten(test_images)  / 255.0
+    test_images = partial_flatten(test_images) / 255.0
     train_labels = one_hot(train_labels, 10)
     test_labels = one_hot(test_labels, 10)
     N_data = train_images.shape[0]
@@ -75,11 +78,12 @@ def plot_images(images, ax, ims_per_row=5, padding=5, digit_dimensions=(28, 28),
         row_start = padding + (padding + digit_dimensions[0]) * row_ix
         col_start = padding + (padding + digit_dimensions[1]) * col_ix
         concat_images[row_start: row_start + digit_dimensions[0],
-                      col_start: col_start + digit_dimensions[1]] = cur_image
+        col_start: col_start + digit_dimensions[1]] = cur_image
     cax = ax.matshow(concat_images, cmap=cmap, vmin=vmin, vmax=vmax)
     plt.xticks(np.array([]))
     plt.yticks(np.array([]))
     return cax
+
 
 def save_images(images, filename, **kwargs):
     fig = plt.figure(1)
