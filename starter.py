@@ -24,7 +24,7 @@ from urllib.request import urlretrieve
 from data import load_mnist, plot_images, save_images
 
 # Load MNIST and Set Up Data
-n_examples = 100
+n_examples = 10000
 if n_examples == 100:
     print('DEBUG RUN')
 if len(sys.argv) == 1:
@@ -39,6 +39,35 @@ test_images = np.round(test_images[0:n_examples])
 
 if 1 in parts:
     print('PART 1')
+
+    # c
+    theta = np.ndarray(shape=(10, 784))
+    for c in range(10):
+        x_c = train_images[train_labels[:, c] == 1]
+        n = x_c.shape[0]
+        theta[c] = (n + x_c.sum(axis=0)) / (3 * n)
+    f, ax = plt.subplots()
+    save_images(theta, 'results/1/thetas.png', vmin=0.0, vmax=1.0)
+
+    # e
+    def c_given_x(x):
+        p = np.ndarray(shape=(x.shape[0], 10))
+        for c in range(10):
+            p[:, c] = 0.1 * (theta[c] ** x * (1 - theta[c]) ** (1 - x)).prod(axis=1)
+        p = p / p.sum(axis=1, keepdims=True)
+        return p
+    def accuracy(pred, target):
+        pred, target = pred.argmax(axis=1), target.argmax(axis=1)
+        return (pred == target).sum() / pred.shape[0]
+    c_given_x_train = c_given_x(train_images)
+    log_likelihood_train = np.log(c_given_x_train).mean(axis=0)
+    print('Class mean log likelihoods (train): %s' % log_likelihood_train.tolist())
+    with open('results/1/log_likelihoods_train.txt', 'w') as f:
+        f.writelines(['%d: %s\n' % (c, ll) for c, ll in enumerate(log_likelihood_train)])
+    c_given_x_test = c_given_x(test_images)
+    accuracy_test = accuracy(c_given_x_test, test_labels)
+    with open('results/1/accuracy_test.txt', 'w') as f:
+        f.write('%g' % accuracy_test)
 
 if 2 in parts:
     print('PART 2')
