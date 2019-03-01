@@ -45,22 +45,23 @@ if 1 in parts:
     for c in range(10):
         x_c = train_images[train_labels[:, c] == 1]
         n = x_c.shape[0]
-        theta[c] = (n + x_c.sum(axis=0)) / (3 * n)
+        theta[c] = (x_c.sum(axis=0) + 1) / (n + 2)
     f, ax = plt.subplots()
     save_images(theta, 'results/1/thetas.png', vmin=0.0, vmax=1.0)
 
     # e
-    def c_given_x(x):
+    def c_given_x(x, log_probs=False):
         p = np.ndarray(shape=(x.shape[0], 10))
         for c in range(10):
-            p[:, c] = 0.1 * (theta[c] ** x * (1 - theta[c]) ** (1 - x)).prod(axis=1)
-        p = p / p.sum(axis=1, keepdims=True)
+            p[:, c] = np.log(0.1) + np.log(theta[c] ** x * (1 - theta[c]) ** (1 - x)).sum(axis=1)
+        p = p - logsumexp(p, axis=1, keepdims=True)
+        if not log_probs:
+            p = np.exp(p)
         return p
     def accuracy(pred, target):
         pred, target = pred.argmax(axis=1), target.argmax(axis=1)
         return (pred == target).sum() / pred.shape[0]
-    c_given_x_train = c_given_x(train_images)
-    log_likelihood_train = np.log(c_given_x_train).mean(axis=0)
+    log_likelihood_train = c_given_x(train_images, log_probs=True).mean(axis=0)
     print('Class mean log likelihoods (train): %s' % log_likelihood_train.tolist())
     with open('results/1/log_likelihoods_train.txt', 'w') as f:
         f.writelines(['%d: %s\n' % (c, ll) for c, ll in enumerate(log_likelihood_train)])
