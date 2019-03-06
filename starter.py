@@ -11,6 +11,7 @@ from autograd import grad
 from autograd.misc.optimizers import adam
 from autograd.scipy.misc import logsumexp
 from autograd.scipy.special import expit as sigmoid
+from tqdm import tqdm
 
 import os
 import gzip
@@ -23,9 +24,20 @@ from urllib.request import urlretrieve
 
 from data import load_mnist, plot_images, save_images
 
+
+def average_logp(p, y):
+    p = p[y == 1]
+    return np.log(p).mean()
+
+
+def average_accuracy(p, y):
+    y, p = y.argmax(axis=1), p.argmax(axis=1)
+    return (y == p).sum() / len(y)
+
+
 # Load MNIST and Set Up Data
-n_examples = 10000
-if n_examples == 100:
+n_examples = None
+if n_examples is not None:
     print('DEBUG RUN')
 if len(sys.argv) == 1:
     parts = [1, 2, 3, 4]
@@ -33,9 +45,10 @@ else:
     parts = sys.argv[1:]
     parts = [int(p) for p in parts]
 N_data, train_images, train_labels, test_images, test_labels = load_mnist()
-train_images = np.round(train_images[0:n_examples])
-train_labels = train_labels[0:n_examples]
-test_images = np.round(test_images[0:n_examples])
+train_images = np.round(train_images)
+if n_examples is not None:
+    train_images = train_images[:n_examples]
+    train_labels = train_labels[0:n_examples]
 
 if 1 in parts:
     print('PART 1')
@@ -50,26 +63,27 @@ if 1 in parts:
     save_images(theta, 'results/1/thetas.png', vmin=0.0, vmax=1.0)
 
     # e
-    def c_given_x(x, log_probs=False):
+    def c_given_x(x):
         p = np.ndarray(shape=(x.shape[0], 10))
         for c in range(10):
             p[:, c] = np.log(0.1) + np.log(theta[c] ** x * (1 - theta[c]) ** (1 - x)).sum(axis=1)
         p = p - logsumexp(p, axis=1, keepdims=True)
-        if not log_probs:
-            p = np.exp(p)
+        p = np.exp(p)
         return p
-    def accuracy(pred, target):
-        pred, target = pred.argmax(axis=1), target.argmax(axis=1)
-        return (pred == target).sum() / pred.shape[0]
-    log_likelihood_train = c_given_x(train_images, log_probs=True).mean(axis=0)
-    print('Class mean log likelihoods (train): %s' % log_likelihood_train.tolist())
-    with open('results/1/log_likelihoods_train.txt', 'w') as f:
-        f.writelines(['%d: %s\n' % (c, ll) for c, ll in enumerate(log_likelihood_train)])
-    c_given_x_test = c_given_x(test_images)
-    accuracy_test = accuracy(c_given_x_test, test_labels)
-    print('Class prediction accuracy (test): %g' % accuracy_test)
-    with open('results/1/accuracy_test.txt', 'w') as f:
-        f.write('%g' % accuracy_test)
+    p_train = c_given_x(train_images)
+    p_test = c_given_x(test_images)
+    avg_logp_train = average_logp(p_train, train_labels)
+    avg_logp_test = average_logp(p_test, test_labels)
+    avg_acc_train = average_accuracy(p_train, train_labels)
+    avg_acc_test = average_accuracy(p_test, test_labels)
+    metrics = ['Average training log likelihood: %g' % avg_logp_train,
+               'Average test log likelihood: %g' % avg_logp_test,
+               'Average training accuracy: %g' % avg_acc_train,
+               'Average test accuracy: %g' % avg_acc_test]
+    metrics = '\n'.join(metrics)
+    print(metrics)
+    with open('results/1/metrics.txt', 'w') as f:
+        f.write(metrics)
 
     np.save('results/1/theta.npy', theta)
 
@@ -80,7 +94,10 @@ if 2 in parts:
         theta = np.load('results/1/theta.npy')
 
     # c
-    samples = np.random.binomial(n=1, p=theta)
+    samples = np.ndarray(shape=(10, 784))
+    for i in range(10):
+        c = np.random.randint(0, 9)
+        samples[i] = np.random.binomial(n=1, p=theta[c])
     f, ax = plt.subplots()
     save_images(samples, 'results/2/samples.png', vmin=0.0, vmax=1.0)
 
@@ -101,6 +118,40 @@ if 2 in parts:
 
 if 3 in parts:
     print('PART 3')
+
+    # c/d
+    def forward(x, w):
+        p = np.exp(np.dot(x, w))
+        p = p / p.sum(axis=1, keepdims=True)
+        return p
+    def ce_grad_mean(x, y, p):
+        return 1 / len(x) * np.dot(x.T, (p - y))
+    epochs = 50
+    batch_size = 32
+    w = np.zeros((784, 10))
+    for _ in tqdm(range(epochs)):
+        for batch in range(0, len(train_images), batch_size):
+            x = train_images[batch:batch+batch_size]
+            y = train_labels[batch:batch+batch_size]
+            p = forward(x, w)
+            w -= 0.001 * ce_grad_mean(x, y, p)
+    p_train = forward(train_images, w)
+    p_test = forward(test_images, w)
+    avg_logp_train = average_logp(p_train, train_labels)
+    avg_logp_test = average_logp(p_test, test_labels)
+    avg_acc_train = average_accuracy(p_train, train_labels)
+    avg_acc_test = average_accuracy(p_test, test_labels)
+    metrics = ['Average training log likelihood: %g' % avg_logp_train,
+               'Average test log likelihood: %g' % avg_logp_test,
+               'Average training accuracy: %g' % avg_acc_train,
+               'Average test accuracy: %g' % avg_acc_test]
+    metrics = '\n'.join(metrics)
+    print(metrics)
+    with open('results/3/metrics.txt', 'w') as f:
+        f.write(metrics)
+    f, ax = plt.subplots()
+    save_images(w.T, 'results/3/parameters.png')
+
 
 if 4 in parts:
     print('PART 4')

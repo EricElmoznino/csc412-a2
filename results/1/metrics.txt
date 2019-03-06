@@ -1,0 +1,4 @@
+Average training log likelihood: -3.35405
+Average test log likelihood: -3.02397
+Average training accuracy: 0.835883
+Average test accuracy: 0.8467
