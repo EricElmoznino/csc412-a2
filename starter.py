@@ -67,11 +67,37 @@ if 1 in parts:
         f.writelines(['%d: %s\n' % (c, ll) for c, ll in enumerate(log_likelihood_train)])
     c_given_x_test = c_given_x(test_images)
     accuracy_test = accuracy(c_given_x_test, test_labels)
+    print('Class prediction accuracy (test): %g' % accuracy_test)
     with open('results/1/accuracy_test.txt', 'w') as f:
         f.write('%g' % accuracy_test)
 
+    np.save('results/1/theta.npy', theta)
+
 if 2 in parts:
     print('PART 2')
+
+    if 1 not in parts:
+        theta = np.load('results/1/theta.npy')
+
+    # c
+    samples = np.random.binomial(n=1, p=theta)
+    f, ax = plt.subplots()
+    save_images(samples, 'results/2/samples.png', vmin=0.0, vmax=1.0)
+
+    # f
+    def xi_given_xtop(xtop):
+        p_top_c = np.ndarray(shape=(10))
+        for c in range(10):
+            p_top_c[c] = np.exp(np.log(theta[c, :392] ** xtop * (1 - theta[c, :392]) ** (1 - xtop)).sum())
+        p = (theta[:, 392:] * p_top_c.reshape((-1, 1))).sum(axis=0) / p_top_c.sum(axis=0)
+        return p
+    samples = train_images[:20]
+    p_bottom = np.ndarray(shape=(20, 392))
+    for i in range(20):
+        p_bottom[i, :] = xi_given_xtop(samples[i, :392])
+    x_bottom = np.random.binomial(n=1, p=p_bottom)
+    samples[:, 392:] = x_bottom
+    save_images(samples, 'results/2/bottom_given_top.png', vmin=0.0, vmax=1.0)
 
 if 3 in parts:
     print('PART 3')
