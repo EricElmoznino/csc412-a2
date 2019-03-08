@@ -112,8 +112,7 @@ if 2 in parts:
     p_bottom = np.ndarray(shape=(20, 392))
     for i in range(20):
         p_bottom[i, :] = xi_given_xtop(samples[i, :392])
-    x_bottom = np.random.binomial(n=1, p=p_bottom)
-    samples[:, 392:] = x_bottom
+    samples[:, 392:] = p_bottom
     save_images(samples, 'results/2/bottom_given_top.png', vmin=0.0, vmax=1.0)
 
 if 3 in parts:
@@ -164,7 +163,7 @@ if 4 in parts:
 
     # Random initialization, with set seed for easier debugging
     # Try changing the weighting of the initial randomization, default 0.01
-    init_params = npr.RandomState(0).randn(K, D) * 0.01
+    theta = npr.RandomState(0).randn(K, D) * 0.01
 
     # Implemented batching for you
     batch_size = 10
@@ -183,6 +182,7 @@ if 4 in parts:
         # unnormalized_logprobs are in R
         # Targets must be 0 or 1
         t2 = targets * 2 - 1
+        t2 = t2[:, np.newaxis, :]
         # Now t2 is -1 or 1, which makes the following form nice
         label_probabilities = -np.logaddexp(0, -unnormalized_logprobs * t2)
         return np.sum(label_probabilities, axis=-1)  # Sum across pixels.
@@ -194,9 +194,7 @@ if 4 in parts:
 
 
     def neglogprob(params, data):
-        # Implement this as the solution for 4c!
-        return
-
+        return np.log(K) - logsumexp(bernoulli_log_density(data, params), axis=-1).mean()
 
     # Get gradient of objective using autograd.
     objective_grad = grad(batched_loss)
@@ -204,10 +202,25 @@ if 4 in parts:
 
     def print_perf(params, iter, gradient):
         if iter % 30 == 0:
-            save_images(sigmoid(params), 'q4plot.png')
+            save_images(sigmoid(params), 'results/4/thetas.png', vmin=0.0, vmax=1.0)
             print(batched_loss(params, iter))
 
 
     # The optimizers provided by autograd can optimize lists, tuples, or dicts of parameters.
     # You may use these optimizers for Q4, but implement your own gradient descent optimizer for Q3!
-    optimized_params = adam(objective_grad, init_params, step_size=0.2, num_iters=10000, callback=print_perf)
+    optimized_params = adam(objective_grad, theta, step_size=0.2, num_iters=10000, callback=print_perf)
+    theta = sigmoid(optimized_params)
+    np.save('results/4/theta.npy', theta)
+
+    def xi_given_xtop(xtop):
+        p_top_c = np.ndarray(shape=(K))
+        for c in range(K):
+            p_top_c[c] = np.exp(np.log(theta[c, :392] ** xtop * (1 - theta[c, :392]) ** (1 - xtop)).sum())
+        p = (theta[:, 392:] * p_top_c.reshape((-1, 1))).sum(axis=0) / p_top_c.sum(axis=0)
+        return p
+    samples = train_images[:20]
+    p_bottom = np.ndarray(shape=(20, 392))
+    for i in range(20):
+        p_bottom[i, :] = xi_given_xtop(samples[i, :392])
+    samples[:, 392:] = p_bottom
+    save_images(samples, 'results/4/bottom_given_top.png', vmin=0.0, vmax=1.0)
