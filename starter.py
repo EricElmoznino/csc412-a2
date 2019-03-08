@@ -66,7 +66,7 @@ if 1 in parts:
     def c_given_x(x):
         p = np.ndarray(shape=(x.shape[0], 10))
         for c in range(10):
-            p[:, c] = np.log(0.1) + np.log(theta[c] ** x * (1 - theta[c]) ** (1 - x)).sum(axis=1)
+            p[:, c] = np.log(theta[c] ** x * (1 - theta[c]) ** (1 - x)).sum(axis=1)
         p = p - logsumexp(p, axis=1, keepdims=True)
         p = np.exp(p)
         return p
